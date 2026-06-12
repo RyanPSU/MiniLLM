@@ -1,5 +1,6 @@
 import torch
 from tokenizer import CharacterTokenizer, load_text
+from model import BigramLanguageModel
 
 # Hyperparameters
 batch_size = 4       # How many sequences we process at once
@@ -57,3 +58,17 @@ if __name__ == "__main__":
     print("\nFirst target example:")
     print(y[0])
     print(tokenizer.decode(y[0].tolist()))
+
+    model = BigramLanguageModel(tokenizer.vocab_size)
+
+    logits, loss = model(x, y)
+
+    print("\nLogits shape:", logits.shape)
+    print("Loss:", loss.item())
+
+    context = torch.zeros((1, 1), dtype=torch.long)
+    generated_tokens = model.generate(context, max_new_tokens=50)[0].tolist()
+    generated_text = tokenizer.decode(generated_tokens)
+
+    print("\nGenerated text:")
+    print(generated_text)
