@@ -9,24 +9,24 @@ class CharacterTokenizer:
         self.vocab_size = len(chars)
 
         # Character to integer
-        self.strtoint = {ch: i for i, ch in enumerate(chars)}
+        self.stoi = {ch: i for i, ch in enumerate(chars)}
 
         # Integer to character
-        self.inttostr = {i: ch for i, ch in enumerate(chars)}
+        self.itos = {i: ch for i, ch in enumerate(chars)}
 
     def encode(self, text: str) -> list[int]:
         """
         Convert a string into a list of integers.
         Example: "hello" -> [12, 5, 18, 18, 21]
         """
-        return [self.strtoint[ch] for ch in text]
+        return [self.stoi[ch] for ch in text]
 
     def decode(self, tokens: list[int]) -> str:
         """
         Convert a list of integers back into a string.
         Example: [12, 5, 18, 18, 21] -> "hello"
         """
-        return "".join([self.inttostr[token] for token in tokens])
+        return "".join([self.itos[token] for token in tokens])
 
 
 def load_text(path: str) -> str:

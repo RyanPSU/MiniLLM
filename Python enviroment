@@ -1,0 +1,2 @@
+cd ~/Documents/MiniLLM
+source .venv/bin/activate
