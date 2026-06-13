@@ -7,6 +7,10 @@ batch_size = 4       # How many sequences we process at once
 block_size = 8       # How many characters are in each sequence
 train_split = 0.9    # 90% train, 10% validation
 
+learning_rate = 1e-3
+max_iters = 1000
+eval_interval = 100
+
 
 # Load and tokenize data
 text = load_text("data/input.txt")
@@ -39,6 +43,30 @@ def get_batch(split: str):
 
     return x, y
 
+@torch.no_grad()
+def estimate_loss(model):
+    """
+    Estimate average training and validation loss.
+    torch.no_grad() tells PyTorch not to track gradients here,
+    because we are only evaluating, not training.
+    """
+    out = {}
+
+    model.eval()
+
+    for split in ["train", "val"]:
+        losses = torch.zeros(10)
+
+        for k in range(10):
+            x, y = get_batch(split)
+            logits, loss = model(x, y)
+            losses[k] = loss.item()
+
+        out[split] = losses.mean()
+
+    model.train()
+
+    return out
 
 if __name__ == "__main__":
     print(f"Dataset length: {len(text):,} characters")
@@ -46,28 +74,30 @@ if __name__ == "__main__":
     print(f"Train tokens: {len(train_data):,}")
     print(f"Validation tokens: {len(val_data):,}")
 
-    x, y = get_batch("train")
-
-    print("\nInput batch shape:", x.shape)
-    print("Target batch shape:", y.shape)
-
-    print("\nFirst input example:")
-    print(x[0])
-    print(tokenizer.decode(x[0].tolist()))
-
-    print("\nFirst target example:")
-    print(y[0])
-    print(tokenizer.decode(y[0].tolist()))
-
     model = BigramLanguageModel(tokenizer.vocab_size)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
-    logits, loss = model(x, y)
+    for step in range(max_iters):
+        if step % eval_interval == 0:
+            losses = estimate_loss(model)
+            print(
+                f"Step {step}: "
+                f"train loss {losses['train']:.4f}, "
+                f"val loss {losses['val']:.4f}"
+            )
 
-    print("\nLogits shape:", logits.shape)
-    print("Loss:", loss.item())
+        x, y = get_batch("train")
+
+        logits, loss = model(x, y)
+
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+        optimizer.step()
+
+    print("\nTraining complete.")
 
     context = torch.zeros((1, 1), dtype=torch.long)
-    generated_tokens = model.generate(context, max_new_tokens=50)[0].tolist()
+    generated_tokens = model.generate(context, max_new_tokens=300)[0].tolist()
     generated_text = tokenizer.decode(generated_tokens)
 
     print("\nGenerated text:")
