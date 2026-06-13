@@ -1,16 +1,17 @@
 import torch
 from tokenizer import CharacterTokenizer, load_text
-from model import BigramLanguageModel
+from model import SimpleLanguageModel
 
 # Hyperparameters
-batch_size = 32       # How many sequences we process at once
-block_size = 8       # How many characters are in each sequence
-train_split = 0.9    # 90% train, 10% validation
+batch_size = 32
+block_size = 8
+train_split = 0.9
 
 learning_rate = 1e-3
-max_iters = 30000
-eval_interval = 100
+max_iters = 10000
+eval_interval = 300
 
+n_embd = 32
 
 # Load and tokenize data
 text = load_text("data/input.txt")
@@ -74,7 +75,12 @@ if __name__ == "__main__":
     print(f"Train tokens: {len(train_data):,}")
     print(f"Validation tokens: {len(val_data):,}")
 
-    model = BigramLanguageModel(tokenizer.vocab_size)
+    model = SimpleLanguageModel(
+    vocab_size=tokenizer.vocab_size,
+    block_size=block_size,
+    n_embd=n_embd,
+    )
+
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
     for step in range(max_iters):
