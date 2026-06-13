@@ -3,12 +3,12 @@ from tokenizer import CharacterTokenizer, load_text
 from model import BigramLanguageModel
 
 # Hyperparameters
-batch_size = 4       # How many sequences we process at once
+batch_size = 32       # How many sequences we process at once
 block_size = 8       # How many characters are in each sequence
 train_split = 0.9    # 90% train, 10% validation
 
 learning_rate = 1e-3
-max_iters = 1000
+max_iters = 30000
 eval_interval = 100
 
 
