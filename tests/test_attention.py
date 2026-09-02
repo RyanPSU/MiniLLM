@@ -56,7 +56,7 @@ class TestCausalSelfAttention(unittest.TestCase):
         )
 
     def test_model_uses_requested_number_of_heads(self):
-        self.assertEqual(len(self.model.self_attention.heads), 4)
+        self.assertEqual(len(self.model.transformer_block.self_attention.heads), 4)
 
     def test_embedding_size_must_be_divisible_by_head_count(self):
         with self.assertRaises(ValueError):
@@ -66,6 +66,26 @@ class TestCausalSelfAttention(unittest.TestCase):
                 n_embd=10,
                 num_heads=4,
             )
+
+    def test_backward_pass_through_transformer_block(self):
+        inputs = torch.randint(0, 10, (2, 5))
+        targets = torch.randint(0, 10, (2, 5))
+
+        _, loss = self.model(inputs, targets)
+
+        self.assertIsNotNone(loss)
+        loss.backward()
+
+        gradients = [
+            parameter.grad
+            for parameter in self.model.parameters()
+            if parameter.requires_grad
+        ]
+
+        self.assertTrue(all(gradient is not None for gradient in gradients))
+        self.assertTrue(
+            all(torch.isfinite(gradient).all() for gradient in gradients) # type: ignore
+        )
 
 
 if __name__ == "__main__":

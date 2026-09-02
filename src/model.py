@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class CausalSelfAttentionHead(nn.Module):
+    tril: torch.Tensor
+    
     def __init__(self, n_embd: int, head_size: int, block_size: int):
         super().__init__()
 
@@ -30,7 +32,7 @@ class CausalSelfAttentionHead(nn.Module):
 
         # Apply only the relevant T × T portion of the causal mask.
         attention_scores = attention_scores.masked_fill(
-            self.tril[:sequence_length, :sequence_length] == 0, # type: ignore
+            self.tril[:sequence_length, :sequence_length] == 0,
             float("-inf"))
 
         # Normalize into probabilities
@@ -76,6 +78,45 @@ class MultiHeadCausalSelfAttention(nn.Module):
 
         return self.output_projection(concatenated_heads)
 
+
+class FeedForward(nn.Module):
+    def __init__(self, n_embd: int):
+        super().__init__()
+
+        self.network = nn.Sequential(
+            nn.Linear(n_embd, 4 * n_embd),
+            nn.GELU(),
+            nn.Linear(4 * n_embd, n_embd),
+        )
+
+    def forward(self, x):
+        return self.network(x)
+
+
+class TransformerBlock(nn.Module):
+    def __init__(
+        self,
+        n_embd: int,
+        num_heads: int,
+        block_size: int,
+    ):
+        super().__init__()
+
+        self.layer_norm_1 = nn.LayerNorm(n_embd)
+        self.self_attention = MultiHeadCausalSelfAttention(
+            n_embd=n_embd,
+            num_heads=num_heads,
+            block_size=block_size,
+        )
+
+        self.layer_norm_2 = nn.LayerNorm(n_embd)
+        self.feed_forward = FeedForward(n_embd)
+
+    def forward(self, x):
+        x = x + self.self_attention(self.layer_norm_1(x))
+        x = x + self.feed_forward(self.layer_norm_2(x))
+        return x
+
     
 class SimpleLanguageModel(nn.Module):
     def __init__(self, vocab_size: int, block_size: int, n_embd: int, num_heads: int):
@@ -90,7 +131,7 @@ class SimpleLanguageModel(nn.Module):
         self.position_embedding_table = nn.Embedding(block_size, n_embd)
 
         # Allows each position to gather information from earlier positions
-        self.self_attention = MultiHeadCausalSelfAttention(
+        self.transformer_block = TransformerBlock(
         n_embd=n_embd,
         num_heads=num_heads,
         block_size=block_size)
@@ -117,7 +158,7 @@ class SimpleLanguageModel(nn.Module):
         x = token_embeddings + position_embeddings
 
         # Create contextual representations using earlier tokens
-        x = self.self_attention(x)
+        x = self.transformer_block(x)
 
         # Convert embeddings into logits
         logits = self.lm_head(x)
