@@ -13,6 +13,7 @@ class TestCausalSelfAttention(unittest.TestCase):
             vocab_size=10,
             block_size=8,
             n_embd=16,
+            num_heads=4,
         )
         self.model.eval()
 
@@ -53,6 +54,18 @@ class TestCausalSelfAttention(unittest.TestCase):
                 atol=1e-6,
             )
         )
+
+    def test_model_uses_requested_number_of_heads(self):
+        self.assertEqual(len(self.model.self_attention.heads), 4)
+
+    def test_embedding_size_must_be_divisible_by_head_count(self):
+        with self.assertRaises(ValueError):
+            SimpleLanguageModel(
+                vocab_size=10,
+                block_size=8,
+                n_embd=10,
+                num_heads=4,
+            )
 
 
 if __name__ == "__main__":

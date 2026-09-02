@@ -6,6 +6,7 @@ from model import SimpleLanguageModel
 batch_size = 32
 block_size = 8
 train_split = 0.9
+num_heads = 4
 
 learning_rate = 1e-3
 max_iters = 10000
@@ -79,6 +80,7 @@ if __name__ == "__main__":
     vocab_size=tokenizer.vocab_size,
     block_size=block_size,
     n_embd=n_embd,
+    num_heads=num_heads,
     )
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)

@@ -30,7 +30,7 @@ class CausalSelfAttentionHead(nn.Module):
 
         # Apply only the relevant T × T portion of the causal mask.
         attention_scores = attention_scores.masked_fill(
-            self.tril[:sequence_length, :sequence_length] == 0,
+            self.tril[:sequence_length, :sequence_length] == 0, # type: ignore
             float("-inf"))
 
         # Normalize into probabilities
@@ -41,9 +41,44 @@ class CausalSelfAttentionHead(nn.Module):
 
         return output
 
+class MultiHeadCausalSelfAttention(nn.Module):
+    def __init__(
+        self,
+        n_embd: int,
+        num_heads: int,
+        block_size: int,
+    ):
+        super().__init__()
 
+        if n_embd % num_heads != 0:
+            raise ValueError("n_embd must be divisible by num_heads")
+
+        head_size = n_embd // num_heads
+
+        self.heads = nn.ModuleList(
+            [
+                CausalSelfAttentionHead(
+                    n_embd=n_embd,
+                    head_size=head_size,
+                    block_size=block_size,
+                )
+                for _ in range(num_heads)
+            ]
+        )
+
+        self.output_projection = nn.Linear(n_embd, n_embd)
+
+    def forward(self, x):
+        concatenated_heads = torch.cat(
+            [head(x) for head in self.heads],
+            dim=-1,
+        )
+
+        return self.output_projection(concatenated_heads)
+
+    
 class SimpleLanguageModel(nn.Module):
-    def __init__(self, vocab_size: int, block_size: int, n_embd: int):
+    def __init__(self, vocab_size: int, block_size: int, n_embd: int, num_heads: int):
         super().__init__()
 
         self.block_size = block_size
@@ -55,10 +90,10 @@ class SimpleLanguageModel(nn.Module):
         self.position_embedding_table = nn.Embedding(block_size, n_embd)
 
         # Allows each position to gather information from earlier positions
-        self.self_attention = CausalSelfAttentionHead(
-            n_embd=n_embd,
-            head_size=n_embd,
-            block_size=block_size)
+        self.self_attention = MultiHeadCausalSelfAttention(
+        n_embd=n_embd,
+        num_heads=num_heads,
+        block_size=block_size)
 
         # Converts embeddings back into vocabulary logits
         self.lm_head = nn.Linear(n_embd, vocab_size)
