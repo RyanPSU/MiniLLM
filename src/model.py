@@ -31,9 +31,12 @@ class CausalSelfAttentionHead(nn.Module):
         # TODO: Compute scaled attention scores.
         # Resulting shape: (B, T, T)
         attention_scores = q @ k.transpose(-2, -1)
-
-        # TODO: Apply only the relevant T × T portion of the causal mask.
         attention_scores = attention_scores * (self.head_size ** -0.5)
+
+        # Apply only the relevant T × T portion of the causal mask.
+        attention_scores = attention_scores.masked_fill(
+            self.tril[:sequence_length, :sequence_length] == 0,
+            float("-inf"))
 
         # TODO: Normalize each row into probabilities.
         attention_weights = ...
