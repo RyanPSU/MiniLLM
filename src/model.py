@@ -2,6 +2,47 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+class CausalSelfAttentionHead(nn.Module):
+    def __init__(self, n_embd: int, head_size: int, block_size: int):
+        super().__init__()
+
+        # TODO: Create three bias-free linear projections:
+        # n_embd -> head_size
+        self.query = nn.Linear(n_embd, head_size, bias = False)
+        self.key = nn.Linear(n_embd, head_size, bias = False)
+        self.value = nn.Linear(n_embd, head_size, bias = False)
+
+        # TODO: Create a block_size × block_size lower-triangular matrix.
+        # Register it as a buffer named "tril" so it moves with the model
+        # between CPU, CUDA, and MPS without becoming a trainable parameter.
+        self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
+
+        self.head_size = head_size
+
+    def forward(self, x):
+        batch_size, sequence_length, channels = x.shape
+
+        # TODO: Produce Q, K, and V.
+        # Each should have shape (B, T, H).
+        q = self.query(x)
+        k = self.key(x)
+        v = self.value(x)
+
+        # TODO: Compute scaled attention scores.
+        # Resulting shape: (B, T, T)
+        attention_scores = ...
+
+        # TODO: Apply only the relevant T × T portion of the causal mask.
+        attention_scores = ...
+
+        # TODO: Normalize each row into probabilities.
+        attention_weights = ...
+
+        # TODO: Calculate the weighted sum of values.
+        # Resulting shape: (B, T, H)
+        output = ...
+
+        return output
 
 class SimpleLanguageModel(nn.Module):
     def __init__(self, vocab_size: int, block_size: int, n_embd: int):
