@@ -6,15 +6,12 @@ class CausalSelfAttentionHead(nn.Module):
     def __init__(self, n_embd: int, head_size: int, block_size: int):
         super().__init__()
 
-        # TODO: Create three bias-free linear projections:
-        # n_embd -> head_size
-        self.query = nn.Linear(n_embd, head_size, bias = False)
-        self.key = nn.Linear(n_embd, head_size, bias = False)
-        self.value = nn.Linear(n_embd, head_size, bias = False)
+        # Bias free linear projections 
+        self.query = nn.Linear(n_embd, head_size, bias=False)
+        self.key = nn.Linear(n_embd, head_size, bias=False)
+        self.value = nn.Linear(n_embd, head_size, bias=False)
 
-        # TODO: Create a block_size × block_size lower-triangular matrix.
-        # Register it as a buffer named "tril" so it moves with the model
-        # between CPU, CUDA, and MPS without becoming a trainable parameter.
+        # Lower-triangular matrix that goes through the model but does not get trained
         self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
 
         self.head_size = head_size
@@ -22,14 +19,12 @@ class CausalSelfAttentionHead(nn.Module):
     def forward(self, x):
         batch_size, sequence_length, channels = x.shape
 
-        # TODO: Produce Q, K, and V.
-        # Each should have shape (B, T, H).
+        # Vectors with shape (B, T, H)
         q = self.query(x)
         k = self.key(x)
         v = self.value(x)
 
-        # TODO: Compute scaled attention scores.
-        # Resulting shape: (B, T, T)
+        # Scaled attention score in shape (B, T, T)
         attention_scores = q @ k.transpose(-2, -1)
         attention_scores = attention_scores * (self.head_size ** -0.5)
 
@@ -38,14 +33,14 @@ class CausalSelfAttentionHead(nn.Module):
             self.tril[:sequence_length, :sequence_length] == 0,
             float("-inf"))
 
-        # TODO: Normalize each row into probabilities.
+        # Normalize into probabilities
         attention_weights = F.softmax(attention_scores, dim=-1)
 
-        # TODO: Calculate the weighted sum of values.
-        # Resulting shape: (B, T, H)
+        # Weighted sum of value in shape (B, T, H)
         output = attention_weights @ v
 
         return output
+
 
 class SimpleLanguageModel(nn.Module):
     def __init__(self, vocab_size: int, block_size: int, n_embd: int):
@@ -58,6 +53,12 @@ class SimpleLanguageModel(nn.Module):
 
         # Gives the model information about positions in the sequence
         self.position_embedding_table = nn.Embedding(block_size, n_embd)
+
+        # Allows each position to gather information from earlier positions
+        self.self_attention = CausalSelfAttentionHead(
+            n_embd=n_embd,
+            head_size=n_embd,
+            block_size=block_size)
 
         # Converts embeddings back into vocabulary logits
         self.lm_head = nn.Linear(n_embd, vocab_size)
@@ -79,6 +80,9 @@ class SimpleLanguageModel(nn.Module):
 
         # Combine token identity and position information
         x = token_embeddings + position_embeddings
+
+        # Create contextual representations using earlier tokens
+        x = self.self_attention(x)
 
         # Convert embeddings into logits
         logits = self.lm_head(x)
