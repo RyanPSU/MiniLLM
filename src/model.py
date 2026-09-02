@@ -9,7 +9,7 @@ class CausalSelfAttentionHead(nn.Module):
     def __init__(self, n_embd: int, head_size: int, block_size: int):
         super().__init__()
 
-        # Bias free linear projections 
+        # Bias free linear projections
         self.query = nn.Linear(n_embd, head_size, bias=False)
         self.key = nn.Linear(n_embd, head_size, bias=False)
         self.value = nn.Linear(n_embd, head_size, bias=False)
@@ -33,8 +33,8 @@ class CausalSelfAttentionHead(nn.Module):
 
         # Apply only the relevant T × T portion of the causal mask.
         attention_scores = attention_scores.masked_fill(
-            self.tril[:sequence_length, :sequence_length] == 0,
-            float("-inf")
+        self.tril[:sequence_length, :sequence_length] == 0,
+        float("-inf")
         )
 
         # Normalize into probabilities
@@ -122,7 +122,7 @@ class TransformerBlock(nn.Module):
         x = x + self.feed_forward(self.layer_norm_2(x))
         return x
 
-    
+
 class MiniLLM(nn.Module):
     def __init__(
         self,

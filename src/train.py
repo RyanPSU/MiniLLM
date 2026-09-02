@@ -25,21 +25,6 @@ n = int(train_split * len(data))
 train_data = data[:n]
 val_data = data[n:]
 
-model = MiniLLM(
-    vocab_size=tokenizer.vocab_size,
-    block_size=block_size,
-    n_embd=n_embd,
-    num_heads=num_heads,
-    num_layers=num_layers,
-)
-
-parameter_count = sum(
-    parameter.numel()
-    for parameter in model.parameters()
-    if parameter.requires_grad
-)
-print(f"Trainable parameters: {parameter_count:,}")
-
 
 def get_batch(split: str):
     """
@@ -93,12 +78,19 @@ if __name__ == "__main__":
     print(f"Validation tokens: {len(val_data):,}")
 
     model = MiniLLM(
-    vocab_size=tokenizer.vocab_size,
-    block_size=block_size,
-    n_embd=n_embd,
-    num_heads=num_heads,
-    num_layers=num_layers,
-)
+        vocab_size=tokenizer.vocab_size,
+        block_size=block_size,
+        n_embd=n_embd,
+        num_heads=num_heads,
+        num_layers=num_layers,
+    )
+
+    parameter_count = sum(
+        parameter.numel()
+        for parameter in model.parameters()
+        if parameter.requires_grad
+    )
+    print(f"Trainable parameters: {parameter_count:,}")
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 

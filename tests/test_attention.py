@@ -2,7 +2,7 @@ import unittest
 
 import torch
 
-from src.model import MiniLLM
+from src.model import MiniLLM, TransformerBlock
 
 
 class TestCausalSelfAttention(unittest.TestCase):
@@ -58,7 +58,11 @@ class TestCausalSelfAttention(unittest.TestCase):
 
     def test_model_uses_requested_number_of_heads(self):
         first_block = self.model.blocks[0]
-        self.assertEqual(len(first_block.self_attention.heads), 4) # type: ignore
+
+        self.assertIsInstance(first_block, TransformerBlock)
+
+        if isinstance(first_block, TransformerBlock):
+            self.assertEqual(len(first_block.self_attention.heads), 4)
 
     def test_model_uses_requested_number_of_layers(self):
         self.assertEqual(len(self.model.blocks), 3)
@@ -80,7 +84,16 @@ class TestCausalSelfAttention(unittest.TestCase):
                 block_size=8,
                 n_embd=10,
                 num_heads=4,
-                num_layers=0
+                num_layers=1
+            )
+    def test_model_requires_at_least_one_head(self):
+        with self.assertRaises(ValueError):
+            MiniLLM(
+                vocab_size=10,
+                block_size=8,
+                n_embd=16,
+                num_heads=0,
+                num_layers=1,
             )
 
     def test_backward_pass_through_transformer_block(self):
