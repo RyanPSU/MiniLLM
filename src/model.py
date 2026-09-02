@@ -30,10 +30,10 @@ class CausalSelfAttentionHead(nn.Module):
 
         # TODO: Compute scaled attention scores.
         # Resulting shape: (B, T, T)
-        attention_scores = ...
+        attention_scores = q @ k.transpose(-2, -1)
 
         # TODO: Apply only the relevant T × T portion of the causal mask.
-        attention_scores = ...
+        attention_scores = attention_scores * (self.head_size ** -0.5)
 
         # TODO: Normalize each row into probabilities.
         attention_weights = ...
