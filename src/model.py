@@ -39,11 +39,11 @@ class CausalSelfAttentionHead(nn.Module):
             float("-inf"))
 
         # TODO: Normalize each row into probabilities.
-        attention_weights = ...
+        attention_weights = F.softmax(attention_scores, dim=-1)
 
         # TODO: Calculate the weighted sum of values.
         # Resulting shape: (B, T, H)
-        output = ...
+        output = attention_weights @ v
 
         return output
 
