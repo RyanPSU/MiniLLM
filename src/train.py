@@ -1,12 +1,13 @@
 import torch
 from tokenizer import CharacterTokenizer, load_text
-from model import SimpleLanguageModel
+from model import MiniLLM
 
 # Hyperparameters
 batch_size = 32
 block_size = 8
 train_split = 0.9
 num_heads = 4
+num_layers = 4
 
 learning_rate = 1e-3
 max_iters = 10000
@@ -23,6 +24,21 @@ data = torch.tensor(tokenizer.encode(text), dtype=torch.long)
 n = int(train_split * len(data))
 train_data = data[:n]
 val_data = data[n:]
+
+model = MiniLLM(
+    vocab_size=tokenizer.vocab_size,
+    block_size=block_size,
+    n_embd=n_embd,
+    num_heads=num_heads,
+    num_layers=num_layers,
+)
+
+parameter_count = sum(
+    parameter.numel()
+    for parameter in model.parameters()
+    if parameter.requires_grad
+)
+print(f"Trainable parameters: {parameter_count:,}")
 
 
 def get_batch(split: str):
@@ -76,12 +92,13 @@ if __name__ == "__main__":
     print(f"Train tokens: {len(train_data):,}")
     print(f"Validation tokens: {len(val_data):,}")
 
-    model = SimpleLanguageModel(
+    model = MiniLLM(
     vocab_size=tokenizer.vocab_size,
     block_size=block_size,
     n_embd=n_embd,
     num_heads=num_heads,
-    )
+    num_layers=num_layers,
+)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 

@@ -2,9 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class CausalSelfAttentionHead(nn.Module):
     tril: torch.Tensor
-    
+
     def __init__(self, n_embd: int, head_size: int, block_size: int):
         super().__init__()
 
@@ -33,7 +34,8 @@ class CausalSelfAttentionHead(nn.Module):
         # Apply only the relevant T × T portion of the causal mask.
         attention_scores = attention_scores.masked_fill(
             self.tril[:sequence_length, :sequence_length] == 0,
-            float("-inf"))
+            float("-inf")
+        )
 
         # Normalize into probabilities
         attention_weights = F.softmax(attention_scores, dim=-1)
@@ -43,6 +45,7 @@ class CausalSelfAttentionHead(nn.Module):
 
         return output
 
+
 class MultiHeadCausalSelfAttention(nn.Module):
     def __init__(
         self,
@@ -51,6 +54,8 @@ class MultiHeadCausalSelfAttention(nn.Module):
         block_size: int,
     ):
         super().__init__()
+        if num_heads < 1:
+            raise ValueError("num_heads must be at least 1")
 
         if n_embd % num_heads != 0:
             raise ValueError("n_embd must be divisible by num_heads")
@@ -118,25 +123,37 @@ class TransformerBlock(nn.Module):
         return x
 
     
-class SimpleLanguageModel(nn.Module):
-    def __init__(self, vocab_size: int, block_size: int, n_embd: int, num_heads: int):
+class MiniLLM(nn.Module):
+    def __init__(
+        self,
+        vocab_size: int,
+        block_size: int,
+        n_embd: int,
+        num_heads: int,
+        num_layers: int,
+    ):
         super().__init__()
+
+        if num_layers < 1:
+            raise ValueError("num_layers must be at least 1")
 
         self.block_size = block_size
 
-        # Converts token IDs into learned embedding vectors
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
-
-        # Gives the model information about positions in the sequence
         self.position_embedding_table = nn.Embedding(block_size, n_embd)
 
-        # Allows each position to gather information from earlier positions
-        self.transformer_block = TransformerBlock(
-        n_embd=n_embd,
-        num_heads=num_heads,
-        block_size=block_size)
+        self.blocks = nn.Sequential(
+            *[
+                TransformerBlock(
+                    n_embd=n_embd,
+                    num_heads=num_heads,
+                    block_size=block_size,
+                )
+                for _ in range(num_layers)
+            ]
+        )
 
-        # Converts embeddings back into vocabulary logits
+        self.final_layer_norm = nn.LayerNorm(n_embd)
         self.lm_head = nn.Linear(n_embd, vocab_size)
 
     def forward(self, idx, targets=None):
@@ -157,10 +174,8 @@ class SimpleLanguageModel(nn.Module):
         # Combine token identity and position information
         x = token_embeddings + position_embeddings
 
-        # Create contextual representations using earlier tokens
-        x = self.transformer_block(x)
-
-        # Convert embeddings into logits
+        x = self.blocks(x)
+        x = self.final_layer_norm(x)
         logits = self.lm_head(x)
 
         loss = None

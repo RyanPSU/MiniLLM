@@ -2,18 +2,19 @@ import unittest
 
 import torch
 
-from src.model import SimpleLanguageModel
+from src.model import MiniLLM
 
 
 class TestCausalSelfAttention(unittest.TestCase):
     def setUp(self):
         torch.manual_seed(42)
 
-        self.model = SimpleLanguageModel(
-            vocab_size=10,
-            block_size=8,
-            n_embd=16,
-            num_heads=4,
+        self.model = MiniLLM(
+        vocab_size=10,
+        block_size=8,
+        n_embd=16,
+        num_heads=4,
+        num_layers=3,
         )
         self.model.eval()
 
@@ -56,15 +57,30 @@ class TestCausalSelfAttention(unittest.TestCase):
         )
 
     def test_model_uses_requested_number_of_heads(self):
-        self.assertEqual(len(self.model.transformer_block.self_attention.heads), 4)
+        first_block = self.model.blocks[0]
+        self.assertEqual(len(first_block.self_attention.heads), 4) # type: ignore
+
+    def test_model_uses_requested_number_of_layers(self):
+        self.assertEqual(len(self.model.blocks), 3)
+
+    def test_model_requires_at_least_one_layer(self):
+        with self.assertRaises(ValueError):
+            MiniLLM(
+                vocab_size=10,
+                block_size=8,
+                n_embd=16,
+                num_heads=4,
+                num_layers=0,
+            )
 
     def test_embedding_size_must_be_divisible_by_head_count(self):
         with self.assertRaises(ValueError):
-            SimpleLanguageModel(
+            MiniLLM(
                 vocab_size=10,
                 block_size=8,
                 n_embd=10,
                 num_heads=4,
+                num_layers=0
             )
 
     def test_backward_pass_through_transformer_block(self):
@@ -73,19 +89,17 @@ class TestCausalSelfAttention(unittest.TestCase):
 
         _, loss = self.model(inputs, targets)
 
-        self.assertIsNotNone(loss)
+        if loss is None:
+            self.fail("Expected a loss when targets are provided")
+
         loss.backward()
 
-        gradients = [
-            parameter.grad
-            for parameter in self.model.parameters()
-            if parameter.requires_grad
-        ]
+        for parameter in self.model.parameters():
+            if parameter.requires_grad:
+                self.assertIsNotNone(parameter.grad)
 
-        self.assertTrue(all(gradient is not None for gradient in gradients))
-        self.assertTrue(
-            all(torch.isfinite(gradient).all() for gradient in gradients) # type: ignore
-        )
+                if parameter.grad is not None:
+                    self.assertTrue(torch.isfinite(parameter.grad).all())
 
 
 if __name__ == "__main__":
