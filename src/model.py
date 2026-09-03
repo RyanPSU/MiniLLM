@@ -6,7 +6,13 @@ import torch.nn.functional as F
 class CausalSelfAttentionHead(nn.Module):
     tril: torch.Tensor
 
-    def __init__(self, n_embd: int, head_size: int, block_size: int):
+    def __init__(
+        self,
+        n_embd: int,
+        head_size: int,
+        block_size: int,
+        dropout: float,
+    ):
         super().__init__()
 
         # Bias free linear projections
@@ -18,6 +24,7 @@ class CausalSelfAttentionHead(nn.Module):
         self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
 
         self.head_size = head_size
+        self.attention_dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         batch_size, sequence_length, channels = x.shape
@@ -38,6 +45,7 @@ class CausalSelfAttentionHead(nn.Module):
 
         # Normalize into probabilities
         attention_weights = F.softmax(attention_scores, dim=-1)
+        attention_weights = self.attention_dropout(attention_weights)
 
         # Weighted sum of value in shape (B, T, H)
         output = attention_weights @ v
@@ -51,8 +59,10 @@ class MultiHeadCausalSelfAttention(nn.Module):
         n_embd: int,
         num_heads: int,
         block_size: int,
+        dropout: float,
     ):
         super().__init__()
+
         if num_heads < 1:
             raise ValueError("num_heads must be at least 1")
 
@@ -67,12 +77,14 @@ class MultiHeadCausalSelfAttention(nn.Module):
                     n_embd=n_embd,
                     head_size=head_size,
                     block_size=block_size,
+                    dropout=dropout,
                 )
                 for _ in range(num_heads)
             ]
         )
 
         self.output_projection = nn.Linear(n_embd, n_embd)
+        self.output_dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         concatenated_heads = torch.cat(
@@ -80,17 +92,19 @@ class MultiHeadCausalSelfAttention(nn.Module):
             dim=-1,
         )
 
-        return self.output_projection(concatenated_heads)
+        projected_output = self.output_projection(concatenated_heads)
+        return self.output_dropout(projected_output)
 
 
 class FeedForward(nn.Module):
-    def __init__(self, n_embd: int):
+    def __init__(self, n_embd: int, dropout: float):
         super().__init__()
 
         self.network = nn.Sequential(
             nn.Linear(n_embd, 4 * n_embd),
             nn.GELU(),
             nn.Linear(4 * n_embd, n_embd),
+            nn.Dropout(dropout),
         )
 
     def forward(self, x):
@@ -103,6 +117,7 @@ class TransformerBlock(nn.Module):
         n_embd: int,
         num_heads: int,
         block_size: int,
+        dropout: float,
     ):
         super().__init__()
 
@@ -111,10 +126,14 @@ class TransformerBlock(nn.Module):
             n_embd=n_embd,
             num_heads=num_heads,
             block_size=block_size,
+            dropout=dropout,
         )
 
         self.layer_norm_2 = nn.LayerNorm(n_embd)
-        self.feed_forward = FeedForward(n_embd)
+        self.feed_forward = FeedForward(
+            n_embd=n_embd,
+            dropout=dropout,
+        )
 
     def forward(self, x):
         x = x + self.self_attention(self.layer_norm_1(x))
@@ -130,11 +149,15 @@ class MiniLLM(nn.Module):
         n_embd: int,
         num_heads: int,
         num_layers: int,
+        dropout: float = 0.0,
     ):
         super().__init__()
 
         if num_layers < 1:
             raise ValueError("num_layers must be at least 1")
+
+        if not 0.0 <= dropout < 1.0:
+            raise ValueError("dropout must be between 0.0 and 1.0")
 
         self.block_size = block_size
 
@@ -147,6 +170,7 @@ class MiniLLM(nn.Module):
                     n_embd=n_embd,
                     num_heads=num_heads,
                     block_size=block_size,
+                    dropout=dropout,
                 )
                 for _ in range(num_layers)
             ]

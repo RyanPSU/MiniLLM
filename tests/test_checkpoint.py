@@ -20,6 +20,7 @@ class TestCheckpoint(unittest.TestCase):
             "n_embd": 8,
             "num_heads": 2,
             "num_layers": 2,
+            "dropout": 0.0,
         }
 
         original_model = MiniLLM(**model_config)

@@ -15,6 +15,7 @@ class TestCausalSelfAttention(unittest.TestCase):
             n_embd=16,
             num_heads=4,
             num_layers=3,
+            dropout=0.0,
         )
         self.model.eval()
 
@@ -149,6 +150,19 @@ class TestCausalSelfAttention(unittest.TestCase):
                 prompt,
                 max_new_tokens=-1,
             )
+
+    def test_dropout_probability_must_be_valid(self):
+        for invalid_dropout in (-0.1, 1.0):
+            with self.subTest(dropout=invalid_dropout):
+                with self.assertRaises(ValueError):
+                    MiniLLM(
+                        vocab_size=10,
+                        block_size=8,
+                        n_embd=16,
+                        num_heads=4,
+                        num_layers=2,
+                        dropout=invalid_dropout,
+                    )
 
 
 if __name__ == "__main__":

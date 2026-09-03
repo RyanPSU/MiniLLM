@@ -27,6 +27,7 @@ block_size = 8
 train_split = 0.9
 num_heads = 4
 num_layers = 4
+dropout = 0.1
 
 learning_rate = 1e-3
 max_iters = 10000
@@ -104,6 +105,7 @@ if __name__ == "__main__":
         n_embd=n_embd,
         num_heads=num_heads,
         num_layers=num_layers,
+        dropout=dropout,
     ).to(device)
 
     print(f"Device: {device}")
@@ -140,6 +142,7 @@ if __name__ == "__main__":
                         "n_embd": n_embd,
                         "num_heads": num_heads,
                         "num_layers": num_layers,
+                        "dropout": dropout,
                     },
                     "training_config": {
                         "batch_size": batch_size,
