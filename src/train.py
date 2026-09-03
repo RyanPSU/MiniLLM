@@ -175,14 +175,16 @@ if __name__ == "__main__":
                 f"train loss {losses['train']:.4f}, "
                 f"val loss {losses['val']:.4f}"
             )
+
             current_val_loss = losses["val"]
+
             training_history.append(
-            {
-                "step": step,
-                "train_loss": losses["train"],
-                "val_loss": losses["val"],
-            }
-        )
+                {
+                    "step": step,
+                    "train_loss": losses["train"],
+                    "val_loss": losses["val"],
+                }
+            )
 
             if current_val_loss < best_val_loss:
                 best_val_loss = current_val_loss
@@ -205,32 +207,32 @@ if __name__ == "__main__":
                 print(f"Saved checkpoint to {checkpoint_path}")
 
         x, y = get_batch("train")
-
         logits, loss = model(x, y)
 
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
         optimizer.step()
-        elapsed_seconds = time.perf_counter() - start_time
 
-        experiment_results = {
-            "run_name": run_name,
-            "model_config": model_config,
-            "training_config": training_config,
-            "parameter_count": parameter_count,
-            "device": str(device),
-            "best_val_loss": best_val_loss,
-            "best_step": best_step,
-            "elapsed_seconds": elapsed_seconds,
-            "history": training_history,
-        }
+    elapsed_seconds = time.perf_counter() - start_time
 
-        results_path = results_dir / f"{run_name}.json"
+    experiment_results = {
+        "run_name": run_name,
+        "model_config": model_config,
+        "training_config": training_config,
+        "parameter_count": parameter_count,
+        "device": str(device),
+        "best_val_loss": best_val_loss,
+        "best_step": best_step,
+        "elapsed_seconds": elapsed_seconds,
+        "history": training_history,
+    }
 
-        with results_path.open("w", encoding="utf-8") as results_file:
-            json.dump(experiment_results, results_file, indent=2)
+    results_path = results_dir / f"{run_name}.json"
 
-        print(f"Saved experiment results to {results_path}")
+    with results_path.open("w", encoding="utf-8") as results_file:
+        json.dump(experiment_results, results_file, indent=2)
+
+    print(f"Saved experiment results to {results_path}")
     print("\nTraining complete.")
 
     context = torch.zeros(
