@@ -114,6 +114,38 @@ class TestCausalSelfAttention(unittest.TestCase):
                 if parameter.grad is not None:
                     self.assertTrue(torch.isfinite(parameter.grad).all())
 
+    def test_generation_adds_requested_number_of_tokens(self):
+        prompt = torch.tensor([[1, 2]])
+
+        generated = self.model.generate(
+            prompt,
+            max_new_tokens=3,
+            temperature=0.8,
+            top_k=5,
+        )
+
+        self.assertEqual(generated.shape, (1, 5))
+
+    def test_generation_rejects_invalid_temperature(self):
+        prompt = torch.tensor([[1]])
+
+        with self.assertRaises(ValueError):
+            self.model.generate(
+                prompt,
+                max_new_tokens=3,
+                temperature=0,
+            )
+
+    def test_generation_rejects_invalid_top_k(self):
+        prompt = torch.tensor([[1]])
+
+        with self.assertRaises(ValueError):
+            self.model.generate(
+                prompt,
+                max_new_tokens=3,
+                top_k=0,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

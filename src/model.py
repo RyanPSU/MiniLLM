@@ -190,30 +190,39 @@ class MiniLLM(nn.Module):
 
         return logits, loss
 
-    def generate(self, idx, max_new_tokens: int):
-        """
-        Generate new tokens from the model.
+    @torch.no_grad()
+    def generate(
+        self,
+        idx,
+        max_new_tokens: int,
+        temperature: float = 1.0,
+        top_k: int | None = None,
+    ):
+        if temperature <= 0:
+            raise ValueError("temperature must be greater than 0")
 
-        idx: starting token IDs, shape (batch_size, current_context_length)
-        """
+        if top_k is not None and top_k < 1:
+            raise ValueError("top_k must be at least 1")
 
         for _ in range(max_new_tokens):
-            # Crop context so it never exceeds block_size
             idx_cond = idx[:, -self.block_size:]
 
-            # Get predictions
-            logits, loss = self(idx_cond)
-
-            # Focus only on the last time step
+            logits, _ = self(idx_cond)
             logits = logits[:, -1, :]
+            logits = logits / temperature
 
-            # Convert logits to probabilities
-            probs = F.softmax(logits, dim=-1)
+            if top_k is not None:
+                effective_top_k = min(top_k, logits.shape[-1])
+                top_values, _ = torch.topk(logits, effective_top_k)
+                cutoff = top_values[:, -1].unsqueeze(-1)
 
-            # Sample the next token
-            idx_next = torch.multinomial(probs, num_samples=1)
+                logits = logits.masked_fill(
+                    logits < cutoff,
+                    float("-inf"),
+                )
 
-            # Append sampled token
+            probabilities = F.softmax(logits, dim=-1)
+            idx_next = torch.multinomial(probabilities, num_samples=1)
             idx = torch.cat((idx, idx_next), dim=1)
 
         return idx

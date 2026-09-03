@@ -165,7 +165,11 @@ if __name__ == "__main__":
 
     print("\nTraining complete.")
 
-    context = torch.zeros((1, 1), dtype=torch.long)
+    context = torch.zeros(
+    (1, 1),
+    dtype=torch.long,
+    device=device,
+)
     generated_tokens = model.generate(context, max_new_tokens=300)[0].tolist()
     generated_text = tokenizer.decode(generated_tokens)
 
