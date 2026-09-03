@@ -1,6 +1,24 @@
 import torch
 from tokenizer import CharacterTokenizer, load_text
 from model import MiniLLM
+from pathlib import Path
+
+seed = 42
+eval_iters = 50
+checkpoint_dir = Path("checkpoints")
+
+def select_device() -> torch.device:
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+
+    if torch.backends.mps.is_available():
+        return torch.device("mps")
+
+    return torch.device("cpu")
+
+
+torch.manual_seed(seed)
+device = select_device()
 
 # Hyperparameters
 batch_size = 32
@@ -44,7 +62,7 @@ def get_batch(split: str):
     # Stack target sequences, shifted one character forward
     y = torch.stack([source_data[i + 1:i + block_size + 1] for i in ix])
 
-    return x, y
+    return x.to(device), y.to(device)
 
 @torch.no_grad()
 def estimate_loss(model):
@@ -58,14 +76,14 @@ def estimate_loss(model):
     model.eval()
 
     for split in ["train", "val"]:
-        losses = torch.zeros(10)
+        losses = torch.zeros(eval_iters)
 
-        for k in range(10):
+        for k in range(eval_iters):
             x, y = get_batch(split)
             logits, loss = model(x, y)
             losses[k] = loss.item()
 
-        out[split] = losses.mean()
+        out[split] = losses.mean().item()
 
     model.train()
 
@@ -83,7 +101,9 @@ if __name__ == "__main__":
         n_embd=n_embd,
         num_heads=num_heads,
         num_layers=num_layers,
-    )
+    ).to(device)
+
+    print(f"Device: {device}")
 
     parameter_count = sum(
         parameter.numel()
@@ -94,6 +114,9 @@ if __name__ == "__main__":
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    best_val_loss = float("inf")
+
     for step in range(max_iters):
         if step % eval_interval == 0:
             losses = estimate_loss(model)
@@ -102,6 +125,35 @@ if __name__ == "__main__":
                 f"train loss {losses['train']:.4f}, "
                 f"val loss {losses['val']:.4f}"
             )
+            current_val_loss = losses["val"]
+
+            if current_val_loss < best_val_loss:
+                best_val_loss = current_val_loss
+
+                checkpoint = {
+                    "model_state_dict": model.state_dict(),
+                    "optimizer_state_dict": optimizer.state_dict(),
+                    "model_config": {
+                        "vocab_size": tokenizer.vocab_size,
+                        "block_size": block_size,
+                        "n_embd": n_embd,
+                        "num_heads": num_heads,
+                        "num_layers": num_layers,
+                    },
+                    "training_config": {
+                        "batch_size": batch_size,
+                        "learning_rate": learning_rate,
+                        "seed": seed,
+                    },
+                    "tokenizer_chars": tokenizer.chars,
+                    "step": step,
+                    "best_val_loss": best_val_loss,
+                }
+
+                checkpoint_path = checkpoint_dir / "best.pt"
+                torch.save(checkpoint, checkpoint_path)
+
+                print(f"Saved checkpoint to {checkpoint_path}")
 
         x, y = get_batch("train")
 
