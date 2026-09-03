@@ -7,6 +7,7 @@ seed = 42
 eval_iters = 50
 checkpoint_dir = Path("checkpoints")
 
+
 def select_device() -> torch.device:
     if torch.cuda.is_available():
         return torch.device("cuda")
@@ -57,12 +58,13 @@ def get_batch(split: str):
     ix = torch.randint(len(source_data) - block_size, (batch_size,))
 
     # Stack input sequences
-    x = torch.stack([source_data[i:i + block_size] for i in ix])
+    x = torch.stack([source_data[i : i + block_size] for i in ix])
 
     # Stack target sequences, shifted one character forward
-    y = torch.stack([source_data[i + 1:i + block_size + 1] for i in ix])
+    y = torch.stack([source_data[i + 1 : i + block_size + 1] for i in ix])
 
     return x.to(device), y.to(device)
+
 
 @torch.no_grad()
 def estimate_loss(model):
@@ -89,6 +91,7 @@ def estimate_loss(model):
 
     return out
 
+
 if __name__ == "__main__":
     print(f"Dataset length: {len(text):,} characters")
     print(f"Vocabulary size: {tokenizer.vocab_size}")
@@ -106,9 +109,7 @@ if __name__ == "__main__":
     print(f"Device: {device}")
 
     parameter_count = sum(
-        parameter.numel()
-        for parameter in model.parameters()
-        if parameter.requires_grad
+        parameter.numel() for parameter in model.parameters() if parameter.requires_grad
     )
     print(f"Trainable parameters: {parameter_count:,}")
 
@@ -166,10 +167,10 @@ if __name__ == "__main__":
     print("\nTraining complete.")
 
     context = torch.zeros(
-    (1, 1),
-    dtype=torch.long,
-    device=device,
-)
+        (1, 1),
+        dtype=torch.long,
+        device=device,
+    )
     generated_tokens = model.generate(context, max_new_tokens=300)[0].tolist()
     generated_text = tokenizer.decode(generated_tokens)
 

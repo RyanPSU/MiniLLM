@@ -40,9 +40,7 @@ def main():
     arguments = parse_arguments()
 
     if not arguments.checkpoint.exists():
-        raise FileNotFoundError(
-            f"Checkpoint not found: {arguments.checkpoint}"
-        )
+        raise FileNotFoundError(f"Checkpoint not found: {arguments.checkpoint}")
 
     if not arguments.prompt:
         raise ValueError("prompt cannot be empty")
@@ -60,9 +58,7 @@ def main():
 
     tokenizer = CharacterTokenizer("".join(tokenizer_chars))
 
-    unknown_characters = sorted(
-        set(arguments.prompt) - set(tokenizer.chars)
-    )
+    unknown_characters = sorted(set(arguments.prompt) - set(tokenizer.chars))
 
     if unknown_characters:
         raise ValueError(
@@ -88,9 +84,7 @@ def main():
         top_k=arguments.top_k,
     )
 
-    generated_text = tokenizer.decode(
-        generated_tokens[0].tolist()
-    )
+    generated_text = tokenizer.decode(generated_tokens[0].tolist())
 
     print(generated_text)
 

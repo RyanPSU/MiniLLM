@@ -1,5 +1,6 @@
 from pathlib import Path
 
+
 class CharacterTokenizer:
     def __init__(self, text: str):
         # Get every unique character in the dataset

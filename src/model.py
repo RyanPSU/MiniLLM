@@ -29,12 +29,11 @@ class CausalSelfAttentionHead(nn.Module):
 
         # Scaled attention score in shape (B, T, T)
         attention_scores = q @ k.transpose(-2, -1)
-        attention_scores = attention_scores * (self.head_size ** -0.5)
+        attention_scores = attention_scores * (self.head_size**-0.5)
 
         # Apply only the relevant T × T portion of the causal mask.
         attention_scores = attention_scores.masked_fill(
-        self.tril[:sequence_length, :sequence_length] == 0,
-        float("-inf")
+            self.tril[:sequence_length, :sequence_length] == 0, float("-inf")
         )
 
         # Normalize into probabilities
@@ -204,8 +203,11 @@ class MiniLLM(nn.Module):
         if top_k is not None and top_k < 1:
             raise ValueError("top_k must be at least 1")
 
+        if max_new_tokens < 0:
+            raise ValueError("max_new_tokens cannot be negative")
+
         for _ in range(max_new_tokens):
-            idx_cond = idx[:, -self.block_size:]
+            idx_cond = idx[:, -self.block_size :]
 
             logits, _ = self(idx_cond)
             logits = logits[:, -1, :]

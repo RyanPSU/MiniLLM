@@ -10,11 +10,11 @@ class TestCausalSelfAttention(unittest.TestCase):
         torch.manual_seed(42)
 
         self.model = MiniLLM(
-        vocab_size=10,
-        block_size=8,
-        n_embd=16,
-        num_heads=4,
-        num_layers=3,
+            vocab_size=10,
+            block_size=8,
+            n_embd=16,
+            num_heads=4,
+            num_layers=3,
         )
         self.model.eval()
 
@@ -79,13 +79,8 @@ class TestCausalSelfAttention(unittest.TestCase):
 
     def test_embedding_size_must_be_divisible_by_head_count(self):
         with self.assertRaises(ValueError):
-            MiniLLM(
-                vocab_size=10,
-                block_size=8,
-                n_embd=10,
-                num_heads=4,
-                num_layers=1
-            )
+            MiniLLM(vocab_size=10, block_size=8, n_embd=10, num_heads=4, num_layers=1)
+
     def test_model_requires_at_least_one_head(self):
         with self.assertRaises(ValueError):
             MiniLLM(
@@ -144,6 +139,15 @@ class TestCausalSelfAttention(unittest.TestCase):
                 prompt,
                 max_new_tokens=3,
                 top_k=0,
+            )
+
+    def test_generation_rejects_negative_token_count(self):
+        prompt = torch.tensor([[1]])
+
+        with self.assertRaises(ValueError):
+            self.model.generate(
+                prompt,
+                max_new_tokens=-1,
             )
 
 
