@@ -32,3 +32,4 @@ Regenerate the comparison table and graph by running:
 
 ```bash
 python scripts/plot_results.py
+```

@@ -1,3 +1,5 @@
+# Generation Setting Comparison
+
 These samples were generated from the `lr_1e3_best.pt` checkpoint, which
 achieved the lowest validation loss in the controlled training experiments.
 
