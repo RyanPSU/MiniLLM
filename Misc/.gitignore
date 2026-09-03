@@ -4,3 +4,4 @@ __pycache__/
 .DS_Store
 checkpoints/
 data/*.txt
+results/smoke*.json

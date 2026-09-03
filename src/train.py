@@ -1,11 +1,15 @@
-import torch
-from tokenizer import CharacterTokenizer, load_text
-from model import MiniLLM
+import argparse
+import json
+import time
 from pathlib import Path
 
-seed = 42
-eval_iters = 50
+import torch
+
+from model import MiniLLM
+from tokenizer import CharacterTokenizer, load_text
+
 checkpoint_dir = Path("checkpoints")
+results_dir = Path("results")
 
 
 def select_device() -> torch.device:
@@ -18,22 +22,48 @@ def select_device() -> torch.device:
     return torch.device("cpu")
 
 
+def parse_arguments() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Train MiniLLM on Tiny Shakespeare."
+    )
+
+    parser.add_argument("--run-name", type=str, default="baseline")
+    parser.add_argument("--batch-size", type=int, default=64)
+    parser.add_argument("--block-size", type=int, default=64)
+    parser.add_argument("--n-embd", type=int, default=64)
+    parser.add_argument("--num-heads", type=int, default=4)
+    parser.add_argument("--num-layers", type=int, default=2)
+    parser.add_argument("--dropout", type=float, default=0.1)
+
+    parser.add_argument("--learning-rate", type=float, default=3e-4)
+    parser.add_argument("--max-iters", type=int, default=3000)
+    parser.add_argument("--eval-interval", type=int, default=250)
+    parser.add_argument("--eval-iters", type=int, default=50)
+    parser.add_argument("--train-split", type=float, default=0.9)
+    parser.add_argument("--seed", type=int, default=42)
+
+    return parser.parse_args()
+
+
+arguments = parse_arguments()
+
+run_name = arguments.run_name
+batch_size = arguments.batch_size
+block_size = arguments.block_size
+n_embd = arguments.n_embd
+num_heads = arguments.num_heads
+num_layers = arguments.num_layers
+dropout = arguments.dropout
+
+learning_rate = arguments.learning_rate
+max_iters = arguments.max_iters
+eval_interval = arguments.eval_interval
+eval_iters = arguments.eval_iters
+train_split = arguments.train_split
+seed = arguments.seed
+
 torch.manual_seed(seed)
 device = select_device()
-
-# Hyperparameters
-batch_size = 32
-block_size = 8
-train_split = 0.9
-num_heads = 4
-num_layers = 4
-dropout = 0.1
-
-learning_rate = 1e-3
-max_iters = 10000
-eval_interval = 300
-
-n_embd = 32
 
 # Load and tokenize data
 text = load_text("data/input.txt")
@@ -99,14 +129,26 @@ if __name__ == "__main__":
     print(f"Train tokens: {len(train_data):,}")
     print(f"Validation tokens: {len(val_data):,}")
 
-    model = MiniLLM(
-        vocab_size=tokenizer.vocab_size,
-        block_size=block_size,
-        n_embd=n_embd,
-        num_heads=num_heads,
-        num_layers=num_layers,
-        dropout=dropout,
-    ).to(device)
+    model_config = {
+        "vocab_size": tokenizer.vocab_size,
+        "block_size": block_size,
+        "n_embd": n_embd,
+        "num_heads": num_heads,
+        "num_layers": num_layers,
+        "dropout": dropout,
+    }
+
+    training_config = {
+        "batch_size": batch_size,
+        "learning_rate": learning_rate,
+        "max_iters": max_iters,
+        "eval_interval": eval_interval,
+        "eval_iters": eval_iters,
+        "train_split": train_split,
+        "seed": seed,
+    }
+
+    model = MiniLLM(**model_config).to(device)
 
     print(f"Device: {device}")
 
@@ -118,7 +160,12 @@ if __name__ == "__main__":
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    results_dir.mkdir(parents=True, exist_ok=True)
+
     best_val_loss = float("inf")
+    best_step = -1
+    training_history = []
+    start_time = time.perf_counter()
 
     for step in range(max_iters):
         if step % eval_interval == 0:
@@ -129,32 +176,30 @@ if __name__ == "__main__":
                 f"val loss {losses['val']:.4f}"
             )
             current_val_loss = losses["val"]
+            training_history.append(
+            {
+                "step": step,
+                "train_loss": losses["train"],
+                "val_loss": losses["val"],
+            }
+        )
 
             if current_val_loss < best_val_loss:
                 best_val_loss = current_val_loss
+                best_step = step
 
                 checkpoint = {
+                    "run_name": run_name,
                     "model_state_dict": model.state_dict(),
                     "optimizer_state_dict": optimizer.state_dict(),
-                    "model_config": {
-                        "vocab_size": tokenizer.vocab_size,
-                        "block_size": block_size,
-                        "n_embd": n_embd,
-                        "num_heads": num_heads,
-                        "num_layers": num_layers,
-                        "dropout": dropout,
-                    },
-                    "training_config": {
-                        "batch_size": batch_size,
-                        "learning_rate": learning_rate,
-                        "seed": seed,
-                    },
+                    "model_config": model_config,
+                    "training_config": training_config,
                     "tokenizer_chars": tokenizer.chars,
                     "step": step,
                     "best_val_loss": best_val_loss,
                 }
 
-                checkpoint_path = checkpoint_dir / "best.pt"
+                checkpoint_path = checkpoint_dir / f"{run_name}_best.pt"
                 torch.save(checkpoint, checkpoint_path)
 
                 print(f"Saved checkpoint to {checkpoint_path}")
@@ -166,7 +211,26 @@ if __name__ == "__main__":
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
         optimizer.step()
+        elapsed_seconds = time.perf_counter() - start_time
 
+        experiment_results = {
+            "run_name": run_name,
+            "model_config": model_config,
+            "training_config": training_config,
+            "parameter_count": parameter_count,
+            "device": str(device),
+            "best_val_loss": best_val_loss,
+            "best_step": best_step,
+            "elapsed_seconds": elapsed_seconds,
+            "history": training_history,
+        }
+
+        results_path = results_dir / f"{run_name}.json"
+
+        with results_path.open("w", encoding="utf-8") as results_file:
+            json.dump(experiment_results, results_file, indent=2)
+
+        print(f"Saved experiment results to {results_path}")
     print("\nTraining complete.")
 
     context = torch.zeros(

@@ -1,0 +1,42 @@
+{
+  "run_name": "smoke",
+  "model_config": {
+    "vocab_size": 65,
+    "block_size": 16,
+    "n_embd": 16,
+    "num_heads": 4,
+    "num_layers": 1,
+    "dropout": 0.1
+  },
+  "training_config": {
+    "batch_size": 4,
+    "learning_rate": 0.0003,
+    "max_iters": 3,
+    "eval_interval": 1,
+    "eval_iters": 2,
+    "train_split": 0.9,
+    "seed": 42
+  },
+  "parameter_count": 5665,
+  "device": "mps",
+  "best_val_loss": 4.171342849731445,
+  "best_step": 2,
+  "elapsed_seconds": 1.1638773330196273,
+  "history": [
+    {
+      "step": 0,
+      "train_loss": 4.312431335449219,
+      "val_loss": 4.305842399597168
+    },
+    {
+      "step": 1,
+      "train_loss": 4.27733039855957,
+      "val_loss": 4.2212982177734375
+    },
+    {
+      "step": 2,
+      "train_loss": 4.329804420471191,
+      "val_loss": 4.171342849731445
+    }
+  ]
+}
